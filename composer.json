@@ -1,0 +1,26 @@
+{
+    "name": "php-sword/webman-support",
+    "description": "Webman support",
+    "type": "library",
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "Kyour",
+            "email": "kyour@vip.qq.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "ext-json": "*",
+        "workerman/webman-framework": "^1.5.0"
+    },
+    "require-dev": {
+        "workerman/webman": "^1.5.0",
+        "topthink/think-validate": "^2.0.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "sword\\": "src"
+        }
+    }
+}
