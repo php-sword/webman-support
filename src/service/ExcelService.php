@@ -1,36 +1,57 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace sword\service;
 
+use PhpOffice\PhpSpreadsheet\Exception;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Writer\Exception;
+use PhpOffice\PhpSpreadsheet\Writer\Exception as WriterException;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use support\Response;
 
 /**
  * 封装文件导入导出服务
  * @see composer require phpoffice/phpspreadsheet 所需包安装
- * @version 1.0.0
+ * @version 1.0.1
  */
 class ExcelService
 {
-
+    /**
+     * @var array 表头
+     */
     private array $colsIndex = [];
+
+    /**
+     * @var int 当前写入行号（光标）
+     */
     private int $lineIndex = 1; //当前写入行光标
 
-    private Spreadsheet $spreadsheet;
-    private Xlsx $excel;
-    private Worksheet $sheet;
+    /**
+     * @var Spreadsheet 当前操作的表格
+     */
+    public Spreadsheet $spreadsheet;
 
-    public function __construct()
+    /**
+     * @var Worksheet 当前操作的sheet
+     */
+    public Worksheet $sheet;
+
+    /**
+     * 创建或者打开一个表格
+     * @param string|null $file 打开的文件
+     * @param int $sheetIndex 打开的sheet
+     * @throws Exception
+     */
+    public function __construct(?string $file = null, int $sheetIndex = 0)
     {
-        $this->spreadsheet = new Spreadsheet();
-        $this->sheet = $this->spreadsheet->getActiveSheet();
+        if (is_null($file)) {
+            $this->spreadsheet = new Spreadsheet();
+        } else {
+            $this->spreadsheet = IOFactory::load($file);
+        }
 
-        // 实例化excel
-        $this->excel = new Xlsx($this->spreadsheet);
-
+        $this->sheet = $this->spreadsheet->getSheet($sheetIndex);
     }
 
     /**
@@ -45,31 +66,51 @@ class ExcelService
     /**
      * 设置当前写入行号（光标）
      * @param int $lineIndex
-     * @return self
+     * @return static
      */
-    public function setLineIndex(int $lineIndex): self
+    public function setLineIndex(int $lineIndex): static
     {
         $this->lineIndex = $lineIndex;
         return $this;
     }
 
     /**
-     * 设置表格列
-     * @param array $cols
-     * @return self
+     * @param $sheetIndex
+     * @return $this
+     * @throws Exception
      */
-    public function setCols(array $cols): self
+    public function changeSheet($sheetIndex): static
+    {
+        $this->sheet = $this->spreadsheet->getSheet($sheetIndex);
+
+        return $this;
+    }
+
+    /**
+     * 设置表格列
+     * @param array $cols ['列名' => '列宽']
+     * @param int $line 行号，为0则以光标自动写入下一行
+     * @return static
+     */
+    public function setCols(array $cols, int $line = 0): static
     {
         $this->colsIndex = $this->makeColumns(count($cols));
+
+        if ($line == 0) {
+            $line = $this->lineIndex + 1;
+        }
 
         // 对单元格设置居中效果
         $index = 0;
         foreach ($cols as $colName => $colWidth) {
             $key = $this->colsIndex[$index++];
 
-            $this->sheet->setCellValue($key . '1', $colName);
+            $this->sheet->setCellValue($key . $line, $colName);
             $this->sheet->getColumnDimension($key)->setWidth($colWidth);
         }
+
+        //设置当前行号
+        $this->lineIndex = $line;
         return $this;
     }
 
@@ -78,7 +119,7 @@ class ExcelService
      * @param string $title
      * @return $this
      */
-    public function setTitle(string $title): self
+    public function setTitle(string $title): static
     {
         $this->sheet->setTitle($title);
         return $this;
@@ -86,69 +127,95 @@ class ExcelService
 
     /**
      * 写入一行数据
-     * @param array $data
-     * @param int $line 行号，为0则以广播自动写入下一行
+     * @param array $data ['值1',['值2', '类型', '居中方式', '字体颜色', '背景颜色', '字体大小']]
+     * @param int $line 行号，为0则以光标自动写入下一行
      * @return $this
      */
-    public function writeLine(array $data, int $line = 0): self
+    public function writeLine(array $data, int $line = 0): static
     {
-        if($line == 0){
-            $line = $this->lineIndex +1;
+        if ($line == 0) {
+            $line = $this->lineIndex + 1;
         }
-        foreach ($data as $key => $val){
+        foreach ($data as $key => $val) {
             $colKey = $this->colsIndex[$key];
-            $this->sheet->setCellValue($colKey . $line, $val);
+            $coordinate = $colKey . $line;
+
+            //如果是数组，则为单元格设置样式
+            if (is_array($val)) {
+                $this->sheet->setCellValueExplicit($coordinate, $val[0], $val[1] ?? 's');
+
+                //获取单元格样式
+                $style = $this->sheet->getStyle($coordinate);
+
+                //水平居中方式 left right center general...
+                if (isset($val[2]) and $val[2]) {
+                    $style->getAlignment()->setHorizontal($val[2]);
+                }
+
+                //字体颜色
+                if (isset($val[3]) and $val[3]) {
+                    $style->getFont()->getColor()->setARGB($val[3]);
+                }
+
+                //背景颜色
+                if (isset($val[4]) and $val[4]) {
+                    $style->getFill()->setFillType(Fill::FILL_SOLID)
+                        ->getStartColor()->setARGB($val[4]);
+                }
+
+                //字体大小
+                if (isset($val[5]) and $val[5]) {
+                    $style->getFont()->setSize($val[5]);
+                }
+            } else {
+                $this->sheet->setCellValue($coordinate, $val);
+            }
         }
+
+        //设置当前行号
         $this->lineIndex = $line;
         return $this;
     }
 
     /**
-     * 保存数据到文件
-     * @param string $fileName
-     * @param string $path
-     * @return string[]
-     * @throws Exception
+     * 写入一个单元格数据
      */
-    public function saveToFile(string $fileName, string $path = ''): array
+    public function writeCell(string $col, string $row, string $val): static
     {
-        $fileName = "{$fileName}.xlsx";
-        if(!$path){
-            $path = "/download/".date('Ymd');
-        }
-
-        $public = public_path();
-
-        //创建文件夹
-        if(!is_dir($public. $path)) mkdir($public. $path, 0777, true);
-
-        $rand = rand(0,999999);
-        $file = $path. "/{$rand}_". $fileName;
-
-        // 保存文件到 public 下
-        $this->excel->save($public. $file);
-
-        return [
-            'path' => $path,
-            'fileName' => $fileName,
-            'file' => $file
-        ];
+        $this->sheet->setCellValue($col . $row, $val);
+        return $this;
     }
 
     /**
-     * 直接下载表格文件
-     * @param string $fileName
-     * @param string $path
-     * @return Response
-     * @throws Exception
+     * 保存数据到文件
+     * @param resource|string $filename
+     * @return void
+     * @throws WriterException
      */
-    public function downloadFile(string $fileName, string $path = ''): Response
+    public function save($filename): void
     {
-        //TODO: 应改为文件流的形似，避免存到硬盘再去读取下载
-        $save = $this->saveToFile($fileName, $path);
+        $xlsx = new Xlsx($this->spreadsheet);
+        $xlsx->save($filename);
+    }
 
-        // 下载文件
-        return response()->download($save['file'], $save['fileName']);
+    /**
+     * 保存为xlsx文件并返回文件二进制数据
+     * @return string
+     * @throws WriterException
+     */
+    public function saveToXlsxBlob(): string
+    {
+        $stream = fopen('php://memory', 'w+');
+
+        $xlsx = new Xlsx($this->spreadsheet);
+        $xlsx->save($stream);
+        rewind($stream);
+
+        $read_data = '';
+        while (!feof($stream)) {
+            $read_data .= fgets($stream);
+        }
+        return $read_data;
     }
 
     /**
@@ -178,7 +245,7 @@ class ExcelService
     private function makeColumns(int $max): array
     {
         $cols = [];
-        for($i = 1; $i <= $max; $i++){
+        for ($i = 1; $i <= $max; $i++) {
             $cols[] = $this->getColumn($i);
         }
         return $cols;
