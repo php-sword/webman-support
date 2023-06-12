@@ -13,7 +13,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 /**
  * 封装文件导入导出服务
  * @see composer require phpoffice/phpspreadsheet 所需包安装
- * @version 1.0.1
+ * @version 1.0.2
  */
 class ExcelService
 {
@@ -65,12 +65,23 @@ class ExcelService
 
     /**
      * 设置当前写入行号（光标）
-     * @param int $lineIndex
+     * @param int $line
      * @return static
      */
-    public function setLineIndex(int $lineIndex): static
+    public function setLineIndex(int $line): static
     {
-        $this->lineIndex = $lineIndex;
+        $this->lineIndex = $line;
+        return $this;
+    }
+
+    /**
+     * 跳过多少行
+     * @param int $line
+     * @return $this
+     */
+    public function skipLine(int $line = 1): static
+    {
+        $this->lineIndex += $line;
         return $this;
     }
 
@@ -89,15 +100,14 @@ class ExcelService
     /**
      * 设置表格列
      * @param array $cols ['列名' => '列宽']
-     * @param int $line 行号，为0则以光标自动写入下一行
+     * @param int|null $line 行号，为0则以光标自动写入下一行
      * @return static
      */
-    public function setCols(array $cols, int $line = 0): static
+    public function setCols(array $cols, ?int $line = 0): static
     {
         $this->colsIndex = $this->makeColumns(count($cols));
-
-        if ($line == 0) {
-            $line = $this->lineIndex + 1;
+        if (!is_null($line)) {
+            $this->lineIndex = $line;
         }
 
         // 对单元格设置居中效果
@@ -105,12 +115,13 @@ class ExcelService
         foreach ($cols as $colName => $colWidth) {
             $key = $this->colsIndex[$index++];
 
-            $this->sheet->setCellValue($key . $line, $colName);
+            $this->sheet->setCellValue($key . $this->lineIndex, $colName);
             $this->sheet->getColumnDimension($key)->setWidth($colWidth);
         }
 
-        //设置当前行号
-        $this->lineIndex = $line;
+        //移动光标至下一行
+        $this->skipLine();
+
         return $this;
     }
 
@@ -128,61 +139,69 @@ class ExcelService
     /**
      * 写入一行数据
      * @param array $data ['值1',['值2', '类型', '居中方式', '字体颜色', '背景颜色', '字体大小']]
-     * @param int $line 行号，为0则以光标自动写入下一行
+     * @param int|null $line 行号，为0则以光标自动写入下一行
+     * @param array|null $colsIndex 指定列索引，为null则使用设置的列索引
      * @return $this
      */
-    public function writeLine(array $data, int $line = 0): static
+    public function writeLine(array $data, ?int $line = null, ?array $colsIndex = null): static
     {
-        if ($line == 0) {
-            $line = $this->lineIndex + 1;
+        $colsIndex = $colsIndex ?? $this->colsIndex;
+        if (!is_null($line)) {
+            $this->lineIndex = $line;
         }
+
         foreach ($data as $key => $val) {
-            $colKey = $this->colsIndex[$key];
-            $coordinate = $colKey . $line;
-
-            //如果是数组，则为单元格设置样式
-            if (is_array($val)) {
-                $this->sheet->setCellValueExplicit($coordinate, $val[0], $val[1] ?? 's');
-
-                //获取单元格样式
-                $style = $this->sheet->getStyle($coordinate);
-
-                //水平居中方式 left right center general...
-                if (isset($val[2]) and $val[2]) {
-                    $style->getAlignment()->setHorizontal($val[2]);
-                }
-
-                //字体颜色
-                if (isset($val[3]) and $val[3]) {
-                    $style->getFont()->getColor()->setARGB($val[3]);
-                }
-
-                //背景颜色
-                if (isset($val[4]) and $val[4]) {
-                    $style->getFill()->setFillType(Fill::FILL_SOLID)
-                        ->getStartColor()->setARGB($val[4]);
-                }
-
-                //字体大小
-                if (isset($val[5]) and $val[5]) {
-                    $style->getFont()->setSize($val[5]);
-                }
-            } else {
-                $this->sheet->setCellValue($coordinate, $val);
-            }
+            $colKey = $colsIndex[$key] ?: $this->getColumn($key) ;
+            $this->writeCell($colKey, $this->lineIndex, $val);
         }
 
-        //设置当前行号
-        $this->lineIndex = $line;
+        //移动光标至下一行
+        $this->skipLine();
+
         return $this;
     }
 
     /**
      * 写入一个单元格数据
+     * @param string $col 列 A B C ...
+     * @param int $row 行 1 2 3 ...
+     * @param string|array $val 值|['值2', '类型', '居中方式', '字体颜色', '背景颜色', '字体大小']
+     * @return ExcelService
      */
-    public function writeCell(string $col, string $row, string $val): static
+    public function writeCell(string $col, int $row, string|array $val): static
     {
-        $this->sheet->setCellValue($col . $row, $val);
+        $coordinate = $col . $row;
+
+        //如果是数组，则为单元格设置样式
+        if (is_array($val)) {
+            $this->sheet->setCellValueExplicit($coordinate, $val[0], $val[1] ?? 's');
+
+            //获取单元格样式
+            $style = $this->sheet->getStyle($coordinate);
+
+            //水平居中方式 left right center general...
+            if (isset($val[2]) and $val[2]) {
+                $style->getAlignment()->setHorizontal($val[2]);
+            }
+
+            //字体颜色
+            if (isset($val[3]) and $val[3]) {
+                $style->getFont()->getColor()->setARGB($val[3]);
+            }
+
+            //背景颜色
+            if (isset($val[4]) and $val[4]) {
+                $style->getFill()->setFillType(Fill::FILL_SOLID)
+                    ->getStartColor()->setARGB($val[4]);
+            }
+
+            //字体大小
+            if (isset($val[5]) and $val[5]) {
+                $style->getFont()->setSize($val[5]);
+            }
+        } else {
+            $this->sheet->setCellValue($coordinate, $val);
+        }
         return $this;
     }
 
@@ -219,6 +238,7 @@ class ExcelService
     }
 
     /**
+     * 获取列名
      * @param int $index max:256
      * @return string
      */
@@ -239,6 +259,7 @@ class ExcelService
     }
 
     /**
+     * 生成列索引
      * @param int $max
      * @return array
      */
