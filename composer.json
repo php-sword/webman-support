@@ -17,7 +17,9 @@
         "workerman/webman-framework": "^1.5.0",
         "workerman/webman": "^1.5.0",
         "php-sword/sword-validate": "^1.0",
-        "phpoffice/phpspreadsheet": "^1.28"
+        "phpoffice/phpspreadsheet": "^1.28",
+        "webman/captcha": "^1.0",
+        "php-sword/webman-cache": "v1.0"
     },
     "autoload": {
         "psr-4": {

@@ -2,8 +2,6 @@
 
 namespace sword\validate;
 
-use think\Validate;
-
 class BaseValidate extends Validate
 {
 
