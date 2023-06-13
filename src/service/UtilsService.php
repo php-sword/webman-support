@@ -2,11 +2,26 @@
 
 namespace sword\service;
 
-use support\Redis;
+use sword\Cache\Facade\Cache;
 use Webman\Http\Request;
 
+/**
+ * 工具类
+ * @version v1.0.1
+ */
 class UtilsService
 {
+
+    /**
+     * @return \Redis
+     */
+    public static function getRedisDriver(): \Redis
+    {
+        /**
+         * @var \Redis
+         */
+        return Cache::store('redis')->handler();
+    }
 
     /**
      * 时间锁
@@ -18,14 +33,16 @@ class UtilsService
     {
         $key = config('app.app_key') . '_lock:' . $key;
 
+        $redis = static::getRedisDriver();
+
         if ($expire == null) {
-            Redis::del($key);
+            $redis->del($key);
             return true;
         }
 
-        $res = Redis::setNx($key, time());
+        $res = $redis->setNx($key, time());
         if ($res) {
-            Redis::expire($key, $expire);
+            $redis->expire($key, $expire);
             return true;
         } else {
             return false;
@@ -40,7 +57,8 @@ class UtilsService
     public static function getLock(string $key): ?string
     {
         $key = config('app.app_key') . '_lock:' . $key;
-        return Redis::get($key);
+        $redis = static::getRedisDriver();
+        return $redis->get($key);
     }
 
     /**

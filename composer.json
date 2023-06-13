@@ -14,6 +14,7 @@
         "ext-json": "*"
     },
     "require-dev": {
+        "ext-redis": "*",
         "workerman/webman-framework": "^1.5.0",
         "workerman/webman": "^1.5.0",
         "php-sword/sword-validate": "^1.0",
