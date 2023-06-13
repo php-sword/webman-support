@@ -103,7 +103,7 @@ class ExcelService
      * @param int|null $line 行号，为0则以光标自动写入下一行
      * @return static
      */
-    public function setCols(array $cols, ?int $line = 0): static
+    public function setCols(array $cols, ?int $line = null): static
     {
         $this->colsIndex = $this->makeColumns(count($cols));
         if (!is_null($line)) {
