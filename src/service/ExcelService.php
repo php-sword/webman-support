@@ -174,7 +174,7 @@ class ExcelService
 
         //如果是数组，则为单元格设置样式
         if (is_array($val)) {
-            $this->sheet->setCellValueExplicit($coordinate, $val[0], $val[1] ?? 's');
+            $this->sheet->setCellValueExplicit($coordinate, $val[0], $val[1] ?: 's');
 
             //获取单元格样式
             $style = $this->sheet->getStyle($coordinate);
