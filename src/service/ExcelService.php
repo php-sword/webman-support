@@ -165,10 +165,10 @@ class ExcelService
      * 写入一个单元格数据
      * @param string $col 列 A B C ...
      * @param int $row 行 1 2 3 ...
-     * @param string|array $val 值|['值2', '类型', '居中方式', '字体颜色', '背景颜色', '字体大小']
+     * @param mixed $val 值|['值2', '类型', '居中方式', '字体颜色', '背景颜色', '字体大小']
      * @return ExcelService
      */
-    public function writeCell(string $col, int $row, string|array $val): static
+    public function writeCell(string $col, int $row, mixed $val): static
     {
         $coordinate = $col . $row;
 
