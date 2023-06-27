@@ -13,7 +13,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 /**
  * 封装文件导入导出服务
  * @see composer require phpoffice/phpspreadsheet 所需包安装
- * @version 1.0.2
+ * @version 1.0.3
  */
 class ExcelService
 {
@@ -165,10 +165,10 @@ class ExcelService
      * 写入一个单元格数据
      * @param string $col 列 A B C ...
      * @param int $row 行 1 2 3 ...
-     * @param mixed $val 值|['值2', '类型', '居中方式', '字体颜色', '背景颜色', '字体大小']
+     * @param string|array $val 值|['值2', '类型', '居中方式', '字体颜色', '背景颜色', '字体大小']
      * @return ExcelService
      */
-    public function writeCell(string $col, int $row, mixed $val): static
+    public function writeCell(string $col, int $row, string|array $val): static
     {
         $coordinate = $col . $row;
 
@@ -238,6 +238,54 @@ class ExcelService
     }
 
     /**
+     * 读取表格数据
+     * @param int|array|null $cols 读取的列数或列名列表，为null则读取所有列
+     * @param int|null $maxRow 最大读取行数
+     * @return array
+     */
+    public function readData(int|array|null $cols = null, int $maxRow = null): array
+    {
+        $lastRow = $this->sheet->getHighestRow();
+
+        if($maxRow != null && $maxRow < $lastRow){
+            $lastRow = $maxRow;
+        }
+
+        //默认获取表格的列数
+        if($cols == null) $cols = $this->getColumnIndex($this->sheet->getHighestColumn());
+
+        $listData = [];
+        for ($l = 1; $l <= $lastRow; $l++) {
+            //如果是数值，则获这么多列的数据
+            $rowData = [];
+            if(is_numeric($cols)){
+                for ($col = 1; $col <= $cols; $col++) {
+                    $colKey = $this->getColumn($col);
+                    $rowData[] = $this->sheet->getCell($colKey. $l)->getValue();
+                }
+            }else{
+                foreach ($cols as $colKey) {
+                    $rowData[] = $this->sheet->getCell($colKey. $l)->getValue();
+                }
+            }
+            $listData[] = $rowData;
+        }
+
+        return $listData;
+    }
+
+    /**
+     * 获取单元格数据
+     * @param string $col
+     * @param int $row
+     * @return mixed
+     */
+    public function getCell(string $col, int $row): mixed
+    {
+        return $this->sheet->getCell($col . $row)->getValue();
+    }
+
+    /**
      * 获取列名
      * @param int $index max:256
      * @return string
@@ -256,6 +304,21 @@ class ExcelService
         }
         $s .= chr(64 + $yu);
         return $s;
+    }
+
+    /**
+     * 根据列名获取列索引
+     * @param string $column
+     * @return int
+     */
+    private function getColumnIndex(string $column): int
+    {
+        $index = 0;
+        $len = strlen($column);
+        for ($i = 0; $i < $len; $i++) {
+            $index += (ord($column[$i]) - 64) * pow(26, $len - $i - 1);
+        }
+        return $index;
     }
 
     /**
