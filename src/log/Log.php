@@ -57,7 +57,7 @@ class Log
                 throw new BadMethodCallException("Log::$method() is not a valid method");
             }
             $levelId = $level->id;
-            $levelName = $level->label;
+            $levelName = $level->name;
         }
 
         $logData = $args[0];
