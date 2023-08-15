@@ -2,13 +2,11 @@
 
 namespace sword\log;
 
-use app\model\LogLevelModel;
-use app\model\LogModel;
-use app\service\AuthService;
 use BadMethodCallException;
 use sword\service\UtilsService;
 use think\db\exception\DbException;
 use Throwable;
+use Tinywan\Jwt\Exception\JwtTokenException;
 use Tinywan\Jwt\JwtToken;
 
 /**
@@ -42,17 +40,17 @@ class Log
     /**
      * @param $method
      * @param $args
-     * @return LogModel
+     * @return SupportLogModel
      * @throws DbException
      */
-    public static function __callStatic($method, $args): LogModel
+    public static function __callStatic($method, $args): SupportLogModel
     {
         if (isset(self::LEVEL_LIST[$method])) {
             $levelId = self::LEVEL_LIST[$method];
             $levelName = $method;
         }else{
             //查询应用日志级别
-            $level = LogLevelModel::where('label', $method)->find();
+            $level = SupportLogLevelModel::where('label', $method)->find();
             if (!$level) {
                 throw new BadMethodCallException("Log::$method() is not a valid method");
             }
@@ -84,9 +82,9 @@ class Log
      * @param string|array $data
      * @param mixed $value
      * @param string $valType
-     * @return LogModel
+     * @return SupportLogModel
      */
-    public static function log(string $level, string|array $data, mixed $value = [], string $valType = 'text'): LogModel
+    public static function log(string $level, string|array $data, mixed $value = [], string $valType = 'text'): SupportLogModel
     {
         return self::$level($data, $value, $valType);
     }
@@ -94,10 +92,10 @@ class Log
     /**
      * 写入日志
      * @param array $data
-     * @return LogModel
+     * @return SupportLogModel
      * @throws DbException
      */
-    private static function writeLog(array $data): LogModel
+    private static function writeLog(array $data): SupportLogModel
     {
         $request = request();
         //自动填充请求来源信息
@@ -116,7 +114,7 @@ class Log
                 $data['request_ip'] = $ip;
             }
             //填充用户数据
-            if($request and (new AuthService)->checkLogin()){
+            if($request and self::checkLogin()){
                 if($userId = JwtToken::getExtendVal('id')){
                     $data['request_user_id'] = $userId;
                 }
@@ -126,7 +124,7 @@ class Log
             }
         }catch (Throwable){}
 
-        $model = new LogModel();
+        $model = new SupportLogModel();
         if(!$model->save($data)) {
             //日志保存到数据库失败
             throw new DbException('日志保存到数据库失败');
@@ -134,4 +132,18 @@ class Log
         return $model;
     }
 
+    /**
+     * 检查是否登录
+     * @return bool
+     */
+    private static function checkLogin(): bool
+    {
+        if(!request()) return false;
+        try{
+            JwtToken::getCurrentId();
+        }catch (JwtTokenException){
+            return false;
+        }
+        return true;
+    }
 }
