@@ -36,7 +36,10 @@ class Install
      */
     public static function installByRelation()
     {
+        var_dump("installByRelation");
         if (!config('app.debug')) return;
+
+        var_dump("installByRelation1111");
 
         $tp_ide_helper = base_path() . '/vendor/webman/think-orm/src/_ide_helper.php';
         if (file_exists($tp_ide_helper)) {
