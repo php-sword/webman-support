@@ -24,6 +24,12 @@ class Log
 {
 
     /**
+     *  日志级别缓存
+     * @var array
+     */
+    private static array $levelMap = [];
+
+    /**
      * 系统日志级别
      */
     const LEVEL_LIST = [
@@ -45,17 +51,16 @@ class Log
      */
     public static function __callStatic($method, $args): SupportLogModel
     {
-        if (isset(self::LEVEL_LIST[$method])) {
-            $levelId = self::LEVEL_LIST[$method];
-            $levelName = $method;
+
+        //查询应用日志级别
+        if(isset(self::$levelMap[$method])) {
+            $level = self::$levelMap[$method];
         }else{
-            //查询应用日志级别
             $level = SupportLogLevelModel::where('label', $method)->find();
             if (!$level) {
                 throw new BadMethodCallException("Log::$method() is not a valid method");
             }
-            $levelId = $level->id;
-            $levelName = $level->name;
+            self::$levelMap[$method] = $level;
         }
 
         $logData = $args[0];
@@ -63,8 +68,8 @@ class Log
         $valueType = $args[2] ?? 'text';
 
         $data = [
-            'level_id' => $levelId,
-            'level_name' => $levelName,
+            'level_id' => $level['id'],
+            'level_name' => $level['name'],
             'title' => $logData,
             'value' => $logValue,
             'value_type' => $valueType
