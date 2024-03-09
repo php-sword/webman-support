@@ -49,25 +49,16 @@ class FilterService
                 $item[0] = "%$item[0]%";
                 break;
             case 'between_time':
-            case 'between':
                 if($item[0] == 'null') return null;
                 $times = explode(',', $item[0]);
                 $item[0] = [strtotime($times[0]), strtotime($times[1])];
+                $item[1] = 'between';
                 break;
-        }
-
-        if($item[1] == 'like'){
-            $item[0] = "%$item[0]%";
-        }else if($item[1] == 'between'){
-            if($item[0] != 'null'){
+            case 'between':
+                if($item[0] == 'null') return null;
                 $times = explode(',', $item[0]);
-                $item[0] = [strtotime($times[0]), strtotime($times[1])];
-            }
-        }else if($item[1] == 'between_time'){
-            if($item[0] != 'null'){
-                $times = explode(',', $item[0]);
-                $item[0] = [strtotime($times[0]), strtotime($times[1])];
-            }
+                $item[0] = [$times[0], $times[1]];
+                break;
         }
 
         return [$key, $item[1], $item[0]];
