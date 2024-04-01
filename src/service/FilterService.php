@@ -3,8 +3,8 @@
 namespace sword\service;
 
 /**
- * Scui框架过滤器服务
- * @version 1.0.0
+ * 前端过滤器参数解析
+ * @version 1.0.1
  */
 class FilterService
 {
@@ -29,7 +29,7 @@ class FilterService
 
             if($item[0] !== ''){
                 if($v = self::formatWhere($key, $item)){
-                    $filterData[] = [$v];
+                    $filterData[] = $v;
                 }
             }
         }
